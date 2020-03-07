@@ -127,3 +127,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Secret stuff - such as user ids or API tokens. 
+*.secret
