@@ -2,6 +2,7 @@ import json
 import threading
 import time
 import datetime
+import queue
 
 import telepot
 from telepot.loop import MessageLoop
@@ -11,12 +12,12 @@ from telepot.loop import MessageLoop
 class TelegramIf(threading.Thread):
 
     # Get setup, including reading in credentials from the JSON file.  Credentials need to be obtained from TFL.
-    def __init__(self):
+    def __init__(self, outgoing_queue):
         # Init the threading
         super(TelegramIf, self).__init__()
 
         # Grab the credentials.  TODO: everyone has to get their own credentials.  Not in the repo.
-        with open('telegram-if/telegram-bot-token.secret') as json_data_file:
+        with open('telegram_if/telegram_bot_token.secret') as json_data_file:
             config = json.load(json_data_file)
 
         # assign to appropriate variables - get used for each call to get status.
@@ -27,6 +28,7 @@ class TelegramIf(threading.Thread):
 
         print(self.bot_dict)
 
+        self.outgoing_queue = outgoing_queue
 
     # Get the status from the TFL site and process it to get just the summary status.
     '''
@@ -52,10 +54,20 @@ class TelegramIf(threading.Thread):
         # trying to ensure there is enough entropy to get started.  Just wait for 5 min.  Could be more clever.
         #time.sleep(300)
 
+        MessageLoop(self.telegram_bot, handle).run_as_thread()
+        print("Telegram IF up and listening")
+        self.telegram_bot.sendMessage(self.telegram_user_id, "water-softener-minder bot restart\n{}"
+                                      .format(datetime.datetime.now().strftime("%a %d/%m/%y %H:%M")))
+
         # Get the status every once in a while
         while True:
-            print("Running")
+            #print("Running")
+            if not self.outgoing_queue.empty():
+                str_to_send = self.outgoing_queue.get_nowait()
+                self.telegram_bot.sendMessage(self.telegram_user_id, str_to_send)
+
             time.sleep(120)
+
 
 """
 After **inserting token** in the source code, run it:
@@ -94,7 +106,7 @@ if __name__ == "__main__":
 
     print('I am listening ...')
 
-    telegram_if.telegram_bot.sendMessage(telegram_if.telegram_user_id, "Water Softener Bot restart")
+    telegram_if.telegram_bot.sendMessage(telegram_if.telegram_user_id, "Water Softener Minder Bot restart")
 
     while 1:
         time.sleep(10)
