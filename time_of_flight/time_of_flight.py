@@ -19,6 +19,8 @@ class TimeOfFlight(threading.Thread):
         i2c = busio.I2C(board.SCL, board.SDA)
         self.vl53 = adafruit_vl53l0x.VL53L0X(i2c)
 
+        self.vl53.measurement_timing_budget = 200000
+
         # Optionally adjust the measurement timing budget to change speed and accuracy.
         # See the example here for more details:
         #   https://github.com/pololu/vl53l0x-arduino/blob/master/examples/Single/Single.ino
@@ -30,7 +32,7 @@ class TimeOfFlight(threading.Thread):
 
     def run(self):
         while True:
-            #print('Range: {0}mm'.format(self.vl53.range))
+            print('Range: {0}mm'.format(self.vl53.range))
             time.sleep(30)
 
 
