@@ -32,7 +32,7 @@ class TimeOfFlight(threading.Thread):
 
     def run(self):
         while True:
-            print('Range: {0}mm'.format(self.vl53.range))
+            #print('Range: {0}mm'.format(self.vl53.range))
             time.sleep(30)
 
 

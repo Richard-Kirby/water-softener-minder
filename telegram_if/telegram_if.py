@@ -7,12 +7,16 @@ import queue
 import telepot
 from telepot.loop import MessageLoop
 
+telegram_bot_global = None
+
 
 # Class that manages the TFL status - sorts out the credentials and makes the queries when asked.
 class TelegramIf(threading.Thread):
 
+    global telegram_bot_global
+
     # Get setup, including reading in credentials from the JSON file.  Credentials need to be obtained from TFL.
-    def __init__(self, outgoing_queue):
+    def __init__(self, out_queue):
         # Init the threading
         super(TelegramIf, self).__init__()
 
@@ -28,7 +32,10 @@ class TelegramIf(threading.Thread):
 
         print(self.bot_dict)
 
-        self.outgoing_queue = outgoing_queue
+        self.outgoing_queue = out_queue
+
+        telegram_bot_global = self.telegram_bot    # Assign telegram bot so it can be used by the handle - bit of a bodge.
+                                            # TO DO: Fix this.
 
     # Get the status from the TFL site and process it to get just the summary status.
     '''
@@ -54,7 +61,6 @@ class TelegramIf(threading.Thread):
         # trying to ensure there is enough entropy to get started.  Just wait for 5 min.  Could be more clever.
         #time.sleep(300)
 
-        MessageLoop(self.telegram_bot, handle).run_as_thread()
         print("Telegram IF up and listening")
         self.telegram_bot.sendMessage(self.telegram_user_id, "water-softener-minder bot restart\n{}"
                                       .format(datetime.datetime.now().strftime("%a %d/%m/%y %H:%M")))
@@ -68,7 +74,6 @@ class TelegramIf(threading.Thread):
 
             time.sleep(120)
 
-
 """
 After **inserting token** in the source code, run it:
 ```
@@ -81,20 +86,8 @@ but accepts two commands:
 - `/time` - reply with the current time, like a clock.
 """
 
-def handle(msg):
-    chat_id = msg['chat']['id']
-    command = msg['text']
 
-    print(chat_id)
 
-    print('Got command: {}'.format(command))
-
-    if command == '/salt':
-        telegram_if.telegram_bot.sendMessage(chat_id, "salt")
-    elif command == '/time':
-        telegram_if.telegram_bot.sendMessage(chat_id, str(datetime.datetime.now()))
-    else:
-        telegram_if.telegram_bot.sendMessage(chat_id, "I didn't understand "+ command + "\nTry /salt or /time")
 
 
 if __name__ == "__main__":
