@@ -57,20 +57,26 @@ class TelegramIf(threading.Thread):
         return status
     '''
 
+    #run function is to be over-ridden as it is the main function that is used by the Thread class.
+    #
     def run(self):
-        # trying to ensure there is enough entropy to get started.  Just wait for 5 min.  Could be more clever.
-        #time.sleep(300)
 
         print("Telegram IF up and listening")
         self.telegram_bot.sendMessage(self.telegram_user_id, "water-softener-minder bot restart\n{}"
                                       .format(datetime.datetime.now().strftime("%a %d/%m/%y %H:%M")))
 
         # Get the status every once in a while
+        str_to_send = None
+
         while True:
             #print("Running")
-            if not self.outgoing_queue.empty():
+            while not self.outgoing_queue.empty():
                 str_to_send = self.outgoing_queue.get_nowait()
+
+            # Send any string that needs to be sent.
+            if str_to_send is not None:
                 self.telegram_bot.sendMessage(self.telegram_user_id, str_to_send)
+                str_to_send = None
 
             time.sleep(120)
 

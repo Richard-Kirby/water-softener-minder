@@ -66,9 +66,9 @@ class LedStripControl(threading.Thread):
             #print(pixel)
             self.strip.setPixelColor(pixel, colour)
             self.strip.show()
-            time.sleep(0.5)
-            self.strip.setPixelColor(pixel, rpi_ws281x.Color(0, 0, 0))
             time.sleep(0.1)
+            self.strip.setPixelColor(pixel, rpi_ws281x.Color(0, 0, 0))
+            time.sleep(0.5)
             self.strip.show()
 
     # Clears al the pixels.
