@@ -1,5 +1,6 @@
 import time
 import rpi_ws281x
+import colorsys
 import threading
 import queue
 
@@ -23,52 +24,75 @@ gamma8 = [
   215,218,220,223,225,228,231,233,236,239,241,244,247,249,252,255]
 
 
-# Class to  control the LED Strip based on the tweets.
+# Class to control the LED Strip based on the height of the salt.
 class LedStripControl(threading.Thread):
 
     # Set up the strip with the passed parameters.  The Gamma correction is done by the library, so it gete passed in.
+    # The gamma correction ensures the colour is adequately represented.
     def __init__(self, led_count, led_pin, led_freq_hz, led_dma, led_invert, led_brightness, led_msg_queue):
 
         super().__init__()
 
         self.led_count = led_count
+
+        # Neopixel strip initialisation.
         self.strip = rpi_ws281x.Adafruit_NeoPixel(led_count, led_pin, led_freq_hz, led_dma, led_invert,
                                                   led_brightness, gamma= gamma8)
 
-        # Intialize the library (must be called once before other functions).
+        # Initialise the library (must be called once before other functions).
         self.strip.begin()
         self.led_msg_queue = led_msg_queue
+
+        # create the colours to be used for the bar graph, spread evenly over hte total pixels
+        low_colour = 0
+        full_colour = 0.4
+
+        colour_step = float((full_colour - low_colour) / self.led_count)
+
+        hue = full_colour  # start the hue at full as we count down.
+        self.rgb_colour_list = []
+
+        # Create the colour mapping to use.  Red at the bottom (empty), green at the top (full).
+        for colour in range(0, self.led_count):
+            hue = hue - colour_step
+            if hue < low_colour:
+                hue = low_colour
+
+            rgb_colour = colorsys.hsv_to_rgb(hue, 1, 0.5)
+            rgb_colour = [int(element * 255) for element in rgb_colour]
+            #print(hue, rgb_colour)
+            self.rgb_colour_list.append(rpi_ws281x.Color(*tuple(rgb_colour)))
 
     # Set the stip colours according to the state of the salt hopper.
     def set_strip_colours(self, remaining_salt_ratio):
 
+        # Start from a clear slate.
         self.pixel_clear()
 
         # Figure out which pixel to light and which colour to use.
-        pixel_to_light = int(float(remaining_salt_ratio) * self.led_count)
+        pixel_to_light = round(float(self.led_count - float(remaining_salt_ratio * self.led_count))) - 1
 
-        minimum_pixels = 5
+        # Limiting the pixels to the available ones.  Don't go below -1 when counting down.
+        if pixel_to_light < -1:
+            pixel_to_light = -1
 
-        if pixel_to_light < minimum_pixels:
+        minimum_pixels = self.led_count - 5 # Need at least 5 pixels to get a decent visual. Count from bottom of strip.
+
+        # This is to ensure we get the minimum # of pixels otherwise hard to see or know the program is working.
+        if pixel_to_light > minimum_pixels:
             pixel_to_light = minimum_pixels
 
-        print(pixel_to_light)
-
-        if remaining_salt_ratio > 0.75:
-            colour = rpi_ws281x.Color(0, 50, 0)
-        elif .75 > remaining_salt_ratio > 0.20:
-            colour = rpi_ws281x.Color(0, 0, 100)
-        else:
-            colour = rpi_ws281x.Color(255, 0, 0)
+        #print("go to {}, ratio {}" .format(pixel_to_light, remaining_salt_ratio))
 
         # Scrolling down
-        for pixel in range (0, pixel_to_light):
-            #print(pixel)
-            self.strip.setPixelColor(pixel, colour)
-            self.strip.show()
-            time.sleep(0.1)
+        for pixel in range(self.led_count-1, pixel_to_light, -1):
             self.strip.setPixelColor(pixel, rpi_ws281x.Color(0, 0, 0))
-            time.sleep(0.5)
+            time.sleep(0.2)
+            self.strip.show()
+
+            # Pixel colour set according to the scheme defined in __init__
+            self.strip.setPixelColor(pixel, self.rgb_colour_list[pixel])
+            time.sleep(0.2)
             self.strip.show()
 
     # Clears al the pixels.
@@ -79,20 +103,20 @@ class LedStripControl(threading.Thread):
 
         self.strip.show()
 
+    # The run function is what gets called when the thread is started.
     def run(self):
 
         remaining_salt_level = None
 
         while True:
 
-            self.pixel_clear()
-            time.sleep(5)
-            while not self.led_msg_queue.empty(): # Clear out the queue as needed.
+            while not self.led_msg_queue.empty(): # Clear out the queue as needed.  This is in case it gets behind.
                 remaining_salt_level = self.led_msg_queue.get_nowait()
                 print(remaining_salt_level)
 
             if remaining_salt_level is not None:
                 self.set_strip_colours(float(remaining_salt_level))
+            time.sleep(10)
 
 
 if __name__ == "__main__":
