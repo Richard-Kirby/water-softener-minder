@@ -112,7 +112,7 @@ class LedStripControl(threading.Thread):
 
             while not self.led_msg_queue.empty(): # Clear out the queue as needed.  This is in case it gets behind.
                 remaining_salt_level = self.led_msg_queue.get_nowait()
-                print(remaining_salt_level)
+                #print(remaining_salt_level)
 
             if remaining_salt_level is not None:
                 self.set_strip_colours(float(remaining_salt_level))

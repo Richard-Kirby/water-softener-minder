@@ -30,7 +30,7 @@ class TelegramIf(threading.Thread):
 
         self.bot_dict = self.telegram_bot.getMe()
 
-        print(self.bot_dict)
+        #print(self.bot_dict)
 
         self.outgoing_queue = out_queue
 

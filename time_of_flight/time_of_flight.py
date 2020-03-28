@@ -21,6 +21,9 @@ class TimeOfFlight(threading.Thread):
 
         self.vl53.measurement_timing_budget = 200000
 
+        self.past_measures = []
+        self.avg_measurement = 0
+
         # Optionally adjust the measurement timing budget to change speed and accuracy.
         # See the example here for more details:
         #   https://github.com/pololu/vl53l0x-arduino/blob/master/examples/Single/Single.ino
@@ -30,10 +33,18 @@ class TimeOfFlight(threading.Thread):
         #vl53.measurement_timing_budget = 200000
         # The default timing budget is 33ms, a good compromise of speed and accuracy.
 
+    # This runs when the thread is started.
     def run(self):
         while True:
             #print('Range: {0}mm'.format(self.vl53.range))
             time.sleep(30)
+            if len(self.past_measures) == 20:
+                self.past_measures.pop(0)
+
+            self.past_measures.append(self.vl53.range)
+            self.avg_measurement = sum(self.past_measures)/len(self.past_measures)
+            #print("Average {} sum {} count {}".format( self.avg_measurement, sum(self.past_measures), len(self.past_measures)))
+
 
 
 # Main loop will read the range and print it every second.

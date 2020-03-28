@@ -31,6 +31,8 @@ def incoming_telegram_handle(msg):
         telegram_interface.telegram_bot.sendMessage(chat_id, "I didn't understand "+ command + "\nTry /salt or /time")
 
 
+print("Start up of Salt Minder", std_time())
+
 # Set up the Telegram interface for outgoing messages.
 outgoing_telegram_queue = queue.Queue()
 
@@ -70,16 +72,17 @@ all_ok_time = 4 * 60 * 60 # time to wait if no warning.
 warning_time = 60 * 60 # time to wait between warnings.
 
 # hours at which to send a message to Telegram.  Don't send message while likely to be asleep.
-hours_to_message = [7, 18, 20]
+hours_to_message = [7, 20]
 time.sleep(90)  # giving a bit of time in case the Pi just started.  Poor little thing doesn't keep track of time.
 last_msg_hour = None  # last message sent - if None, it indicates the program is just starting.
 
 # Main loop.
 while True:
 
-    print("Measuring")
+    #print("Measuring")
+
     # Calculate how much salt is left.
-    remaining_salt = hopper_size_mm - time_of_flight.vl53.range
+    remaining_salt = hopper_size_mm - time_of_flight.avg_measurement
     remaining_salt_ratio = float(remaining_salt / (hopper_size_mm - mm_to_salt_fill_line))
 
     # Check to prevent poor measurements - not sure if fails sometimes for some reason.
@@ -90,14 +93,15 @@ while True:
 
     curr_time = datetime.datetime.now()
 
+    refill_warning_level = refill_warning_ratio * (hopper_size_mm - mm_to_salt_fill_line)
+
     # Create a status string, which may not get sent anywhere.
-    salt_str = "Remaining salt is {:.0%} or {}mm .\n" \
-               "Re-fill needed at {:.0%} or {}mm\n{}".format(remaining_salt_ratio,
-                                                             remaining_salt,
-                                                             refill_warning_ratio,
-                                                             refill_warning_ratio * (hopper_size_mm
-                                                                                     - mm_to_salt_fill_line),
-                                                             std_time())
+    salt_str = "Remaining salt is {:.0%} or {:.0f}mm.\n" \
+               "Re-fill needed at {:.0%} or {:.0f}mm\n{}.".format(remaining_salt_ratio,
+                                                                  remaining_salt,
+                                                                  refill_warning_ratio,
+                                                                  refill_warning_level,
+                                                                  std_time())
 
     # Change the message to prepend Warning if salt is low.
     if remaining_salt_ratio < refill_warning_ratio:
@@ -111,8 +115,7 @@ while True:
     # Restricts the time at which measurements are announced to telegram.  The last_msg_hour bit makes sure
     # only one message goes out in that one hour.
     if (curr_time.hour in hours_to_message and curr_time.hour is not last_msg_hour) or last_msg_hour is None:
-
         outgoing_telegram_queue.put_nowait(salt_str)
         last_msg_hour = curr_time.hour
 
-    time.sleep(30)
+    time.sleep(30*60)
