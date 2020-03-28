@@ -118,4 +118,4 @@ while True:
         outgoing_telegram_queue.put_nowait(salt_str)
         last_msg_hour = curr_time.hour
 
-    time.sleep(30*60)
+    time.sleep(5*60)

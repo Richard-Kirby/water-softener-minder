@@ -2,7 +2,8 @@ import json
 import threading
 import time
 import datetime
-import queue
+import sys
+import os
 
 import telepot
 from telepot.loop import MessageLoop
@@ -12,7 +13,6 @@ telegram_bot_global = None
 
 # Class that manages the TFL status - sorts out the credentials and makes the queries when asked.
 class TelegramIf(threading.Thread):
-
     global telegram_bot_global
 
     # Get setup, including reading in credentials from the JSON file.  Credentials need to be obtained from TFL.
@@ -30,12 +30,12 @@ class TelegramIf(threading.Thread):
 
         self.bot_dict = self.telegram_bot.getMe()
 
-        #print(self.bot_dict)
+        # print(self.bot_dict)
 
         self.outgoing_queue = out_queue
 
-        telegram_bot_global = self.telegram_bot    # Assign telegram bot so it can be used by the handle - bit of a bodge.
-                                            # TO DO: Fix this.
+        telegram_bot_global = self.telegram_bot  # Assign telegram bot so it can be used by the handle - bit of a bodge.
+        # TO DO: Fix this.
 
     # Get the status from the TFL site and process it to get just the summary status.
     '''
@@ -57,28 +57,54 @@ class TelegramIf(threading.Thread):
         return status
     '''
 
-    #run function is to be over-ridden as it is the main function that is used by the Thread class.
+    # run function is to be over-ridden as it is the main function that is used by the Thread class.
     #
     def run(self):
 
         print("Telegram IF up and listening")
-        self.telegram_bot.sendMessage(self.telegram_user_id, "water-softener-minder bot restart\n{}"
-                                      .format(datetime.datetime.now().strftime("%a %d/%m/%y %H:%M")))
 
-        # Get the status every once in a while
-        str_to_send = None
+        try:
+            self.telegram_bot.sendMessage(self.telegram_user_id, "water-softener-minder bot restart\n{}"
+                                         .format(datetime.datetime.now().strftime("%a %d/%m/%y %H:%M")))
 
-        while True:
-            #print("Running")
-            while not self.outgoing_queue.empty():
-                str_to_send = self.outgoing_queue.get_nowait()
+            # self.telegram_bot.sendMessage(0, "water-softener-minder bot restart\n{}"
+            #                              .format(datetime.datetime.now().strftime("%a %d/%m/%y %H:%M")))
+            # Get the status every once in a while
+            str_to_send = None
 
-            # Send any string that needs to be sent.
-            if str_to_send is not None:
-                self.telegram_bot.sendMessage(self.telegram_user_id, str_to_send)
-                str_to_send = None
+            while True:
 
-            time.sleep(120)
+                # print("Running")
+
+                while not self.outgoing_queue.empty():
+                    str_to_send = self.outgoing_queue.get_nowait()
+
+                # Send any string that needs to be sent.
+                if str_to_send is not None:
+                    self.telegram_bot.sendMessage(self.telegram_user_id, str_to_send)
+                    str_to_send = None
+
+                time.sleep(120)
+
+        except KeyboardInterrupt:
+
+            print("Keyboard Interrupt")
+
+        except:
+            print("Some other exception - might be a network issue - 120s stale task timeout?")
+
+            print("Unexpected error:", sys.exc_info())
+            # Force Reboot here after a timeout.
+            print("Forcing Reboot in 300s")
+
+            time.sleep(300)  # wait a few seconds to give a chance to break a vicious cycle if needed Ctrl C will stop.
+
+            os.system('sudo shutdown -r now')
+
+        finally:
+            print("Ending of Telegram Interface Thread")
+
+
 
 """
 After **inserting token** in the source code, run it:
@@ -92,13 +118,9 @@ but accepts two commands:
 - `/time` - reply with the current time, like a clock.
 """
 
-
-
-
-
 if __name__ == "__main__":
     telegram_if = TelegramIf()
-    #tfl_status.get_summary_status()
+    # tfl_status.get_summary_status()
     telegram_if.start()
 
     MessageLoop(telegram_if.telegram_bot, handle).run_as_thread()
