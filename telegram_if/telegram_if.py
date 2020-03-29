@@ -67,8 +67,8 @@ class TelegramIf(threading.Thread):
             self.telegram_bot.sendMessage(self.telegram_user_id, "water-softener-minder bot restart\n{}"
                                          .format(datetime.datetime.now().strftime("%a %d/%m/%y %H:%M")))
 
-            # self.telegram_bot.sendMessage(0, "water-softener-minder bot restart\n{}"
-            #                              .format(datetime.datetime.now().strftime("%a %d/%m/%y %H:%M")))
+            self.telegram_bot.sendMessage(0, "water-softener-minder bot restart\n{}"
+                                          .format(datetime.datetime.now().strftime("%a %d/%m/%y %H:%M")))
             # Get the status every once in a while
             str_to_send = None
 
@@ -91,15 +91,16 @@ class TelegramIf(threading.Thread):
             print("Keyboard Interrupt")
 
         except:
-            print("Some other exception - might be a network issue - 120s stale task timeout?")
+            print("***** Water-Softener-Minder - Some other exception - might be a network issue - 120s stale task timeout?")
 
-            print("Unexpected error:", sys.exc_info())
+            print("***** Water-Softener-Minder - Unexpected error:", sys.exc_info())
             # Force Reboot here after a timeout.
-            print("Forcing Reboot in 300s")
+            print("***** Water-Softener-Minder - Forcing Reboot in 300s")
 
             time.sleep(300)  # wait a few seconds to give a chance to break a vicious cycle if needed Ctrl C will stop.
 
-            os.system('sudo shutdown -r now')
+            print("***** Water-Softener-Minder - issuing *****sudo shutdown -r now*****")
+            os.system('/usr/bin/sudo reboot --force')
 
         finally:
             print("Ending of Telegram Interface Thread")
