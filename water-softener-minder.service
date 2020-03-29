@@ -1,0 +1,14 @@
+[Unit]
+Description=Service to start the water softener minder.  
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/python3 -u /home/pi/water-softener-minder/minder.py
+WorkingDirectory=/home/pi/water-softener-minder
+StandardOutput=inherit
+StandardError=inherit
+Restart=always
+User=root
+
+[Install]
+WantedBy=multi-user.target

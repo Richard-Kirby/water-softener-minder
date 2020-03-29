@@ -87,12 +87,12 @@ class LedStripControl(threading.Thread):
         # Scrolling down
         for pixel in range(self.led_count-1, pixel_to_light, -1):
             self.strip.setPixelColor(pixel, rpi_ws281x.Color(0, 0, 0))
-            time.sleep(0.2)
+            time.sleep(0.5)
             self.strip.show()
 
             # Pixel colour set according to the scheme defined in __init__
             self.strip.setPixelColor(pixel, self.rgb_colour_list[pixel])
-            time.sleep(0.2)
+            time.sleep(0.5)
             self.strip.show()
 
     # Clears al the pixels.
@@ -116,7 +116,8 @@ class LedStripControl(threading.Thread):
 
             if remaining_salt_level is not None:
                 self.set_strip_colours(float(remaining_salt_level))
-            time.sleep(10)
+
+            time.sleep(30)
 
 
 if __name__ == "__main__":

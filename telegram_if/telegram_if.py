@@ -67,8 +67,8 @@ class TelegramIf(threading.Thread):
             self.telegram_bot.sendMessage(self.telegram_user_id, "water-softener-minder bot restart\n{}"
                                          .format(datetime.datetime.now().strftime("%a %d/%m/%y %H:%M")))
 
-            self.telegram_bot.sendMessage(0, "water-softener-minder bot restart\n{}"
-                                          .format(datetime.datetime.now().strftime("%a %d/%m/%y %H:%M")))
+            #self.telegram_bot.sendMessage(0, "water-softener-minder bot restart\n{}"
+            #                              .format(datetime.datetime.now().strftime("%a %d/%m/%y %H:%M")))
             # Get the status every once in a while
             str_to_send = None
 
@@ -99,7 +99,7 @@ class TelegramIf(threading.Thread):
 
             time.sleep(300)  # wait a few seconds to give a chance to break a vicious cycle if needed Ctrl C will stop.
 
-            print("***** Water-Softener-Minder - issuing *****sudo shutdown -r now*****")
+            print("***** Water-Softener-Minder - issuing *****sudo reboot --force*****")
             os.system('/usr/bin/sudo reboot --force')
 
         finally:
