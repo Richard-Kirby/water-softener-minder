@@ -45,10 +45,8 @@ class TelegramIf(threading.Thread):
 
         try:
             self.telegram_bot.sendMessage(self.telegram_user_id, "water-softener-minder bot restart\n{}"
-                                         .format(datetime.datetime.now().strftime("%a %d/%m/%y %H:%M")))
+                                          .format(datetime.datetime.now().strftime("%a %d/%m/%y %H:%M")))
 
-            #self.telegram_bot.sendMessage(0, "water-softener-minder bot restart\n{}"
-            #                              .format(datetime.datetime.now().strftime("%a %d/%m/%y %H:%M")))
             # Get the status every once in a while
             str_to_send = None
 
@@ -59,6 +57,7 @@ class TelegramIf(threading.Thread):
                 # Get any messages that have to be dealt with.  Offset is the next message to deal with.
                 try:
                     response = self.telegram_bot.getUpdates(offset=self.last_update_id + 1)
+
                 except:
                     print("*** ERR- failed to check for messages - not panicking")
 
