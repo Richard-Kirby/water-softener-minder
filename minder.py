@@ -13,6 +13,10 @@ def std_time():
     return datetime.datetime.now().strftime("%a %d/%m/%y %H:%M")
 
 
+''' 
+
+Deprecated - removed this as it is might be causing issues for the IP handling.  
+
 # This handles incoming telegram comms.
 def incoming_telegram_handle(msg):
     chat_id = msg['chat']['id']
@@ -30,17 +34,19 @@ def incoming_telegram_handle(msg):
     else:
         telegram_interface.telegram_bot.sendMessage(chat_id, "I didn't understand "+ command + "\nTry /salt or /time")
 
-
-print("Start up of Salt Minder", std_time())
+'''
+print("Start up of Salt Minder - time might be off on reboot - no RTC", std_time())
 
 # Set up the Telegram interface for outgoing messages.
 outgoing_telegram_queue = queue.Queue()
+incoming_telegram_queue = queue.Queue()
 
-telegram_interface = telegram_if.TelegramIf(outgoing_telegram_queue)
+
+telegram_interface = telegram_if.TelegramIf(outgoing_telegram_queue, incoming_telegram_queue)
 telegram_interface.daemon = True
 telegram_interface.start()
 
-MessageLoop(telegram_interface.telegram_bot, incoming_telegram_handle).run_as_thread()
+# MessageLoop(telegram_interface.telegram_bot, incoming_telegram_handle).run_as_thread()
 
 # Set up the time of flight object.
 time_of_flight = time_of_flight.TimeOfFlight()
@@ -76,10 +82,14 @@ hours_to_message = [7, 20]
 time.sleep(90)  # giving a bit of time in case the Pi just started.  Poor little thing doesn't keep track of time.
 last_msg_hour = None  # last message sent - if None, it indicates the program is just starting.
 
-# Main loop.
-while True:
+# loop counter to allow to respond to messages and do other work, but not constantly print to terminal.
+loop_count = 0
 
-    #print("Measuring")
+# Main loop.
+
+command = None
+
+while True:
 
     # Calculate how much salt is left.
     remaining_salt = hopper_size_mm - time_of_flight.avg_measurement
@@ -107,7 +117,23 @@ while True:
     if remaining_salt_ratio < refill_warning_ratio:
         salt_str = "WARNING LOW SALT" + salt_str
 
-    print(salt_str)
+    #print (loop_count)
+    # Only print out every once in a while - just filling up screen and logs.
+    if loop_count % 180 == 0:
+        print(salt_str)
+
+    while not incoming_telegram_queue.empty():
+        command = incoming_telegram_queue.get_nowait()
+        print("Processing command = ", command)
+
+    if command is not None:
+        if command == '/salt':
+            outgoing_telegram_queue.put_nowait(salt_str)
+        elif command == '/time':
+            outgoing_telegram_queue.put_nowait(std_time())
+        else:
+            outgoing_telegram_queue.put_nowait("I didn't understand " + command + "\nTry /salt or /time")
+        command = None
 
     # This goes to LED string for handling.
     led_remaining_salt_ratio_queue.put_nowait(remaining_salt_ratio)
@@ -118,4 +144,5 @@ while True:
         outgoing_telegram_queue.put_nowait(salt_str)
         last_msg_hour = curr_time.hour
 
-    time.sleep(5*60)
+    time.sleep(10)
+    loop_count += 1

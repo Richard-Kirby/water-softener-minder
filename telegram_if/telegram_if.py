@@ -13,10 +13,10 @@ telegram_bot_global = None
 
 # Class that manages the TFL status - sorts out the credentials and makes the queries when asked.
 class TelegramIf(threading.Thread):
-    global telegram_bot_global
+    #global telegram_bot_global
 
     # Get setup, including reading in credentials from the JSON file.  Credentials need to be obtained from TFL.
-    def __init__(self, out_queue):
+    def __init__(self, out_queue, in_queue):
         # Init the threading
         super(TelegramIf, self).__init__()
 
@@ -32,33 +32,13 @@ class TelegramIf(threading.Thread):
 
         # print(self.bot_dict)
 
+        # Set last update to 0 - this means will process all new messages.
+        self.last_update_id = 0
+
         self.outgoing_queue = out_queue
+        self.incoming_queue = in_queue
 
-        telegram_bot_global = self.telegram_bot  # Assign telegram bot so it can be used by the handle - bit of a bodge.
-        # TO DO: Fix this.
-
-    # Get the status from the TFL site and process it to get just the summary status.
-    '''
-    def get_summary_status(self):
-
-        status ={}
-
-        try:
-            print("trying")
-            result= requests.get(self.status_request_url).json()
-            for line in result:
-                print (line['name'],":", line['lineStatuses'][0]['statusSeverityDescription'])
-                status[line['name']] = line['lineStatuses'][0]['statusSeverityDescription']
-        except:
-            print("tfl status get failed - random number generator or Internet not avail?")
-            raise
-
-        #print(status)
-        return status
-    '''
-
-    # run function is to be over-ridden as it is the main function that is used by the Thread class.
-    #
+    # Run function is to be over-ridden as it is the main function that is used by the Thread class.
     def run(self):
 
         print("Telegram IF up and listening")
@@ -76,6 +56,24 @@ class TelegramIf(threading.Thread):
 
                 # print("Running")
 
+                # Get any messages that have to be dealt with.  Offset is the next message to deal with.
+                try:
+                    response = self.telegram_bot.getUpdates(offset=self.last_update_id + 1)
+                except:
+                    print("*** ERR- failed to check for messages - not panicking")
+
+                for update in response:
+                    self.last_update_id = update['update_id']
+                    # print(update)
+
+                    command = update['message']['text']
+                    # chat_id = update['message']['chat']['id']
+
+                    # print('Got command: {}'.format(command))
+
+                    # Put into the queue for the minder main program to handle.
+                    self.incoming_queue.put_nowait(command)
+
                 while not self.outgoing_queue.empty():
                     str_to_send = self.outgoing_queue.get_nowait()
 
@@ -84,7 +82,7 @@ class TelegramIf(threading.Thread):
                     self.telegram_bot.sendMessage(self.telegram_user_id, str_to_send)
                     str_to_send = None
 
-                time.sleep(120)
+                time.sleep(30)
 
         except KeyboardInterrupt:
 

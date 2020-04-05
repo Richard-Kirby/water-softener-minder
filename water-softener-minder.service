@@ -8,6 +8,7 @@ WorkingDirectory=/home/pi/water-softener-minder
 StandardOutput=inherit
 StandardError=inherit
 Restart=always
+RestartSec=30
 User=root
 
 [Install]
