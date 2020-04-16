@@ -3,6 +3,7 @@ import datetime
 import threading
 import queue
 import sys
+import ntplib
 
 import time_of_flight
 import telegram_if
@@ -56,16 +57,34 @@ class WaterSoftenerMinder(threading.Thread):
         # Basic setup parameters - could go into a JSON or other file.
         self.hopper_size_mm = 420  # size of hopper in mm
         self.mm_to_salt_fill_line = 100  # distance between sensor and where the fill line is for the salt.
-        self.refill_warning_ratio = 0.20  # Trigger a refill WARNING message at 20%
+        self.refill_warning_ratio = 0.50  # Trigger a refill WARNING message at 20%
         self.refill_warning_level = self.refill_warning_ratio * (self.hopper_size_mm - self.mm_to_salt_fill_line)
         self.remaining_salt = 0
         self.remaining_salt_ratio = 0
         self.salt_str = None
 
         # hours at which to send a message to Telegram.  Don't send message while likely to be asleep.
-        self.hours_to_message = [7, 9, 11 , 23, 15, 17, 19, 20]
+        self.hours_to_message = [7, 20]
         self.last_msg_hour = None  # last message sent - if None, it indicates the program is just starting.
-        time.sleep(90)  # Giving a bit of time in case the Pi just started. No RTC doesn't keep track of time.
+
+        # check on the time sync.  If not synched yet, then wait and break out of the loop when detected or max loop
+        # reached
+        ntp_client = ntplib.NTPClient()
+
+        # Give some maximum time to sync, otherwise crack on.
+        for i in range (90):
+            try:
+                ntp_response = ntp_client.request('europe.pool.ntp.org', version=4)
+                print (ntp_response.offset)
+
+                if ntp_response.offset < 2:
+                    print("Synced @ {}" .format(i))
+                    break
+
+            except ntplib.NTPException:
+                print("NTP Exception ")
+
+            time.sleep(1)
 
     def create_salt_status_string(self):
         # Calculate how much salt is left.
@@ -109,6 +128,7 @@ class WaterSoftenerMinder(threading.Thread):
             else:
                 self.outgoing_telegram_queue.put_nowait("I didn't understand " + command + "\nTry /salt or /time")
 
+    # Main loop that manages the work flow.
     def run(self):
         # loop counter to allow to respond to messages and do other work, but not constantly print to terminal.
         loop_count = 0
@@ -124,8 +144,8 @@ class WaterSoftenerMinder(threading.Thread):
             self.respond_to_command()
 
             # Only print out every once in a while - just filling up screen and logs.
-            if loop_count % 360 == 0:
-                print(salt_str)
+            if loop_count % (360 * 8) == 0:
+                print("WSM: {}" .format(salt_str))
 
             # This goes to LED string for handling.
             self.led_remaining_salt_ratio_queue.put_nowait(self.remaining_salt_ratio)
@@ -141,12 +161,15 @@ class WaterSoftenerMinder(threading.Thread):
             loop_count += 1
 
 
+# Starting up the main object that manages everything.
 water_softener_minder = WaterSoftenerMinder()
 water_softener_minder.isDaemon = True
 water_softener_minder.start()
 
 try:
     while True:
+
+        # All the work is being done in separate threads.
         pass
         time.sleep(60)
 
