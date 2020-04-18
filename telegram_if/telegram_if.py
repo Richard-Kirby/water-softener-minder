@@ -49,10 +49,12 @@ class TelegramIf(threading.Thread):
 
             # Get the status every once in a while
             str_to_send = None
+            image_to_send = None
 
             while True:
 
                 # print("Running")
+                response = None
 
                 # Get any messages that have to be dealt with.  Offset is the next message to deal with.
                 try:
@@ -61,27 +63,37 @@ class TelegramIf(threading.Thread):
                 except:
                     print("*** ERR- failed to check for messages - not panicking")
 
-                for update in response:
-                    self.last_update_id = update['update_id']
-                    # print(update)
+                if response is not None:
+                    for update in response:
+                        self.last_update_id = update['update_id']
+                        # print(update)
 
-                    command = update['message']['text']
-                    # chat_id = update['message']['chat']['id']
+                        command = update['message']['text']
+                        # chat_id = update['message']['chat']['id']
 
-                    # print('Got command: {}'.format(command))
+                        # print('Got command: {}'.format(command))
 
-                    # Put into the queue for the minder main program to handle.
-                    self.incoming_queue.put_nowait(command)
+                        # Put into the queue for the minder main program to handle.
+                        self.incoming_queue.put_nowait(command)
 
                 while not self.outgoing_queue.empty():
                     str_to_send = self.outgoing_queue.get_nowait()
+                    if str_to_send[:5] == 'image':
+                        image_to_send = str_to_send[6:]
+                        print(image_to_send)
 
                 # Send any string that needs to be sent.
                 if str_to_send is not None:
                     self.telegram_bot.sendMessage(self.telegram_user_id, str_to_send)
                     str_to_send = None
 
-                time.sleep(30)
+                if image_to_send is not None:
+
+                    image_handle = open(image_to_send, 'rb')
+                    self.telegram_bot.sendPhoto(self.telegram_user_id, image_handle, caption="History")
+                    image_to_send = None
+
+                time.sleep(5)
 
         except KeyboardInterrupt:
 

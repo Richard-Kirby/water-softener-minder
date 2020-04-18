@@ -4,11 +4,12 @@ import threading
 import queue
 import sys
 import ntplib
+import json
 
 import time_of_flight
 import telegram_if
 import led_strip
-
+import graphing
 
 # Standard time string
 def std_time():
@@ -67,15 +68,17 @@ class WaterSoftenerMinder(threading.Thread):
         self.hours_to_message = [7, 20]
         self.last_msg_hour = None  # last message sent - if None, it indicates the program is just starting.
 
+        self.long_term_data_filename = 'long_term_salt_data.json'
+
         # check on the time sync.  If not synched yet, then wait and break out of the loop when detected or max loop
         # reached
         ntp_client = ntplib.NTPClient()
 
         # Give some maximum time to sync, otherwise crack on.
-        for i in range (90):
+        for i in range(90):
             try:
                 ntp_response = ntp_client.request('europe.pool.ntp.org', version=4)
-                print (ntp_response.offset)
+                # print(ntp_response.offset)
 
                 if ntp_response.offset < 2:
                     print("Synced @ {}" .format(i))
@@ -86,6 +89,7 @@ class WaterSoftenerMinder(threading.Thread):
 
             time.sleep(1)
 
+    # Create the string to send for salt status.
     def create_salt_status_string(self):
         # Calculate how much salt is left.
         self.remaining_salt = self.hopper_size_mm - self.time_of_flight_thread.avg_measurement
@@ -111,6 +115,7 @@ class WaterSoftenerMinder(threading.Thread):
 
         return self.salt_str
 
+    # This responds to incoming requests to the bot.
     def respond_to_command(self):
 
         while not self.incoming_telegram_queue.empty():
@@ -125,6 +130,9 @@ class WaterSoftenerMinder(threading.Thread):
 
             elif command == '/time':
                 self.outgoing_telegram_queue.put_nowait(std_time())
+
+            elif command == '/photo':
+                self.outgoing_telegram_queue.put_nowait("image /home/pi/water-softener-minder/salt_plot.jpg")
             else:
                 self.outgoing_telegram_queue.put_nowait("I didn't understand " + command + "\nTry /salt or /time")
 
@@ -133,6 +141,19 @@ class WaterSoftenerMinder(threading.Thread):
         # loop counter to allow to respond to messages and do other work, but not constantly print to terminal.
         loop_count = 0
         last_msg_hour = None # initialising this so we get one status message sent at the start.
+        time.sleep(5)  # wait a few seconds to build up some measurements.
+
+        long_term_salt_data = []
+
+        # Create the plotter
+        salt_plotter = graphing.SaltPlotter()
+
+        # Write the latest data to file.
+        try:
+            with open(self.long_term_data_filename, 'r') as salt_data_file:
+                long_term_salt_data = json.load(salt_data_file)
+        except OSError:
+            print("failure to read file {}".format(OSError.filename))
 
         # Main loop.
         while True:
@@ -147,6 +168,18 @@ class WaterSoftenerMinder(threading.Thread):
             if loop_count % (360 * 8) == 0:
                 print("WSM: {}" .format(salt_str))
 
+            if loop_count % (6 * 60 * 4) == 0:
+                data_item = {"datetime": curr_time.strftime("%d/%m %H:%M"), "salt_level": self.remaining_salt}
+                long_term_salt_data.append(data_item)
+
+                # Update the plot and write latest data to the file.
+                if len(long_term_salt_data) >= 5:
+                    salt_plotter.plot_save(long_term_salt_data, "salt_plot.jpg")
+
+                    # Write the latest data to file.
+                    with open(self.long_term_data_filename, 'w') as salt_data_file:
+                        json.dump(long_term_salt_data, salt_data_file)
+
             # This goes to LED string for handling.
             self.led_remaining_salt_ratio_queue.put_nowait(self.remaining_salt_ratio)
 
@@ -155,6 +188,9 @@ class WaterSoftenerMinder(threading.Thread):
             if (curr_time.hour in self.hours_to_message and curr_time.hour is not last_msg_hour) \
                     or last_msg_hour is None:
                 self.outgoing_telegram_queue.put_nowait(salt_str)
+
+                # Send the graph
+                self.outgoing_telegram_queue.put_nowait("image /home/pi/water-softener-minder/salt_plot.jpg")
                 last_msg_hour = curr_time.hour
 
             time.sleep(10)

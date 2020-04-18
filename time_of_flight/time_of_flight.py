@@ -35,14 +35,16 @@ class TimeOfFlight(threading.Thread):
 
     # This runs when the thread is started.
     def run(self):
+        time.sleep(2)
+
         while True:
             #print('Range: {0}mm'.format(self.vl53.range))
-            time.sleep(30)
             if len(self.past_measures) == 20:
                 self.past_measures.pop(0)
 
             self.past_measures.append(self.vl53.range)
             self.avg_measurement = sum(self.past_measures)/len(self.past_measures)
+            time.sleep(5)
             #print("Average {} sum {} count {}".format( self.avg_measurement, sum(self.past_measures), len(self.past_measures)))
 
 
