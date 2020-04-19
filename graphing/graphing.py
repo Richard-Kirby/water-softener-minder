@@ -10,7 +10,7 @@ class SaltPlotter:
     def __init__(self, max_plot_points):
         matplotlib.pyplot.rcParams["savefig.format"] = 'svg'
         self.max_plot_points = max_plot_points
-        self.label_increment = 10
+        self.label_increment = 1
 
     def plot_save(self, long_term_data, file_name):
 
@@ -18,20 +18,12 @@ class SaltPlotter:
         x_data = []
         y_data = []
 
-        #x_label = 0
-
-        for i in long_term_data:
-            #if x_label % self.label_increment:
+        for i in long_term_data[-self.max_plot_points:]:
             x_data.append(i['datetime'])
-            #else:
-            #    x_data.append(' ')
             y_data.append(float(i['salt_level']))
-            #x_label += 1
-
-        # print(x_data, y_data)
 
         fig, ax = plt.subplots()
-        ax.plot(x_data[-self.max_plot_points:], y_data[-self.max_plot_points:])
+        ax.plot(x_data, y_data)
 
         # rotate and align the tick labels so they look better
         fig.autofmt_xdate()

@@ -159,8 +159,8 @@ class WaterSoftenerMinder(threading.Thread):
 
         long_term_salt_data = []
 
-        # Create the plotter - plot up to 42 samples.
-        salt_plotter = graphing.SaltPlotter(42)
+        # Create the plotter - plot up to 20 samples.
+        salt_plotter = graphing.SaltPlotter(20)
 
         # Write the latest data to file.
         try:
@@ -179,13 +179,10 @@ class WaterSoftenerMinder(threading.Thread):
             self.respond_to_command()
 
             # Only print out every once in a while - just filling up screen and logs.
-            if loop_count % (360 * 8) == 0:
+            if loop_count % (360 * 4) == 0:
                 print("WSM: {}" .format(self.salt_str))
-
-            if loop_count % (6) == 0:
                 data_item = {"datetime": curr_time.strftime("%d/%m %H:%M"), "salt_level": self.remaining_salt}
                 long_term_salt_data.append(data_item)
-                print(data_item)
 
                 # Update the plot and write latest data to the file.
                 if len(long_term_salt_data) >= 5:
