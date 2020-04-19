@@ -1,1 +1,1 @@
-from telegram_if.telegram_if import TelegramIf
+from telegram_if.telegram_if import TelegramIf, OutgoingTelegramItem

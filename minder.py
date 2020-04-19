@@ -124,29 +124,43 @@ class WaterSoftenerMinder(threading.Thread):
 
             if command == '/salt':
                 if self.salt_str is not None:
-                    self.outgoing_telegram_queue.put_nowait(self.salt_str)
+                    self.outgoing_telegram_queue.put_nowait(
+                        telegram_if.OutgoingTelegramItem(string_to_send=self.salt_str))
+
                 else:
-                    self.outgoing_telegram_queue.put_nowait("No salt string - try later")
+                    self.outgoing_telegram_queue.put_nowait(
+                        telegram_if.OutgoingTelegramItem(string_to_send="No Salt String - try later"))
 
             elif command == '/time':
-                self.outgoing_telegram_queue.put_nowait(std_time())
 
-            elif command == '/photo':
-                self.outgoing_telegram_queue.put_nowait("image /home/pi/water-softener-minder/salt_plot.jpg")
+                self.outgoing_telegram_queue.put_nowait(
+                    telegram_if.OutgoingTelegramItem(string_to_send=std_time()))
+
+            elif command == '/history':
+                out_telegram_item = telegram_if.OutgoingTelegramItem\
+                    (image_to_send_dict={'image': "/home/pi/water-softener-minder/salt_plot.jpg",
+                                         'caption': self.salt_str})
+
+                self.outgoing_telegram_queue.put_nowait(out_telegram_item)
+
             else:
-                self.outgoing_telegram_queue.put_nowait("I didn't understand " + command + "\nTry /salt or /time")
+                out_telegram_item = telegram_if.OutgoingTelegramItem (string_to_send=
+                                                                      "I didn't understand " + command +
+                                                                      "\nTry /salt or /history or /time")
+
+                self.outgoing_telegram_queue.put_nowait(out_telegram_item)
 
     # Main loop that manages the work flow.
     def run(self):
         # loop counter to allow to respond to messages and do other work, but not constantly print to terminal.
         loop_count = 0
-        last_msg_hour = None # initialising this so we get one status message sent at the start.
+        last_msg_hour = None  # initialising this so we get one status message sent at the start.
         time.sleep(5)  # wait a few seconds to build up some measurements.
 
         long_term_salt_data = []
 
-        # Create the plotter
-        salt_plotter = graphing.SaltPlotter()
+        # Create the plotter - plot up to 42 samples.
+        salt_plotter = graphing.SaltPlotter(42)
 
         # Write the latest data to file.
         try:
@@ -160,17 +174,18 @@ class WaterSoftenerMinder(threading.Thread):
             curr_time = datetime.datetime.now()
 
             # Get the salt string, which provides the status of the hopper.
-            salt_str = self.create_salt_status_string()
+            self.create_salt_status_string()
 
             self.respond_to_command()
 
             # Only print out every once in a while - just filling up screen and logs.
             if loop_count % (360 * 8) == 0:
-                print("WSM: {}" .format(salt_str))
+                print("WSM: {}" .format(self.salt_str))
 
-            if loop_count % (6 * 60 * 4) == 0:
+            if loop_count % (6) == 0:
                 data_item = {"datetime": curr_time.strftime("%d/%m %H:%M"), "salt_level": self.remaining_salt}
                 long_term_salt_data.append(data_item)
+                print(data_item)
 
                 # Update the plot and write latest data to the file.
                 if len(long_term_salt_data) >= 5:
@@ -187,10 +202,11 @@ class WaterSoftenerMinder(threading.Thread):
             # only one message goes out in that one hour.
             if (curr_time.hour in self.hours_to_message and curr_time.hour is not last_msg_hour) \
                     or last_msg_hour is None:
-                self.outgoing_telegram_queue.put_nowait(salt_str)
 
-                # Send the graph
-                self.outgoing_telegram_queue.put_nowait("image /home/pi/water-softener-minder/salt_plot.jpg")
+                # Send the latest image
+                image_dict = {'image': "/home/pi/water-softener-minder/salt_plot.jpg", 'caption': self.salt_str}
+                out_telegram_item = telegram_if.OutgoingTelegramItem(image_to_send_dict=image_dict)
+                self.outgoing_telegram_queue.put_nowait(out_telegram_item)
                 last_msg_hour = curr_time.hour
 
             time.sleep(10)
@@ -206,7 +222,6 @@ try:
     while True:
 
         # All the work is being done in separate threads.
-        pass
         time.sleep(60)
 
 except KeyboardInterrupt:

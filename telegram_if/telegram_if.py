@@ -8,7 +8,12 @@ import os
 import telepot
 from telepot.loop import MessageLoop
 
-telegram_bot_global = None
+
+class OutgoingTelegramItem:
+
+    def __init__(self, string_to_send=None, image_to_send_dict=None):
+        self.string_to_send = string_to_send
+        self.image_to_send_dict = image_to_send_dict
 
 
 # Class that manages the TFL status - sorts out the credentials and makes the queries when asked.
@@ -48,9 +53,6 @@ class TelegramIf(threading.Thread):
                                           .format(datetime.datetime.now().strftime("%a %d/%m/%y %H:%M")))
 
             # Get the status every once in a while
-            str_to_send = None
-            image_to_send = None
-
             while True:
 
                 # print("Running")
@@ -69,7 +71,6 @@ class TelegramIf(threading.Thread):
                         # print(update)
 
                         command = update['message']['text']
-                        # chat_id = update['message']['chat']['id']
 
                         # print('Got command: {}'.format(command))
 
@@ -77,21 +78,16 @@ class TelegramIf(threading.Thread):
                         self.incoming_queue.put_nowait(command)
 
                 while not self.outgoing_queue.empty():
-                    str_to_send = self.outgoing_queue.get_nowait()
-                    if str_to_send[:5] == 'image':
-                        image_to_send = str_to_send[6:]
-                        print(image_to_send)
+                    outgoing_telegram_item = self.outgoing_queue.get_nowait()
 
-                # Send any string that needs to be sent.
-                if str_to_send is not None:
-                    self.telegram_bot.sendMessage(self.telegram_user_id, str_to_send)
-                    str_to_send = None
+                    if outgoing_telegram_item.image_to_send_dict is not None:
+                        image_handle = open(outgoing_telegram_item.image_to_send_dict['image'], 'rb')
 
-                if image_to_send is not None:
+                        self.telegram_bot.sendPhoto(self.telegram_user_id, image_handle,
+                                                    caption=outgoing_telegram_item.image_to_send_dict['caption'])
 
-                    image_handle = open(image_to_send, 'rb')
-                    self.telegram_bot.sendPhoto(self.telegram_user_id, image_handle, caption="History")
-                    image_to_send = None
+                    if outgoing_telegram_item.string_to_send is not None:
+                        self.telegram_bot.sendMessage(self.telegram_user_id, outgoing_telegram_item.string_to_send)
 
                 time.sleep(5)
 
