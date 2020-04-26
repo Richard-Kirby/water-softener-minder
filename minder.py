@@ -11,6 +11,7 @@ import telegram_if
 import led_strip
 import graphing
 
+
 # Standard time string
 def std_time():
     return datetime.datetime.now().strftime("%a %d/%m/%y %H:%M")
@@ -66,9 +67,21 @@ class WaterSoftenerMinder(threading.Thread):
 
         # hours at which to send a message to Telegram.  Don't send message while likely to be asleep.
         self.hours_to_message = [7, 20]
+        self.hours_to_measure = [6]
         self.last_msg_hour = None  # last message sent - if None, it indicates the program is just starting.
 
+        self.long_term_salt_data = [] # initialise the long term data with empty array - gets read from file.
         self.long_term_data_filename = 'long_term_salt_data.json'
+
+        # Get the existing data from the file.
+        try:
+            with open(self.long_term_data_filename, 'r') as salt_data_file:
+                self.long_term_salt_data = json.load(salt_data_file)
+        except OSError:
+            print("failure to read file {}".format(OSError.filename))
+
+        # Create the plotter - plot up to 20 samples.
+        self.salt_plotter = graphing.SaltPlotter(20)
 
         # check on the time sync.  If not synched yet, then wait and break out of the loop when detected or max loop
         # reached
@@ -150,24 +163,24 @@ class WaterSoftenerMinder(threading.Thread):
 
                 self.outgoing_telegram_queue.put_nowait(out_telegram_item)
 
+    def regular_measurement(self, curr_time):
+        print("WSM: {}" .format(self.salt_str))
+        data_item = {"datetime": curr_time.strftime("%d/%m %H:%M"), "salt_level": self.remaining_salt}
+        self.long_term_salt_data.append(data_item)
+
+        # Update the plot and write latest data to the file.
+        if len(self.long_term_salt_data) >= 5:
+            self.salt_plotter.plot_save(self.long_term_salt_data, "salt_plot.jpg")
+
+            # Write the latest data to file.  Only save last 200 results
+            with open(self.long_term_data_filename, 'w') as salt_data_file:
+                json.dump(self.long_term_salt_data[-200:], salt_data_file)
+
     # Main loop that manages the work flow.
     def run(self):
-        # loop counter to allow to respond to messages and do other work, but not constantly print to terminal.
-        loop_count = 0
         last_msg_hour = None  # initialising this so we get one status message sent at the start.
+        last_measure_hour = None
         time.sleep(5)  # wait a few seconds to build up some measurements.
-
-        long_term_salt_data = []
-
-        # Create the plotter - plot up to 20 samples.
-        salt_plotter = graphing.SaltPlotter(20)
-
-        # Write the latest data to file.
-        try:
-            with open(self.long_term_data_filename, 'r') as salt_data_file:
-                long_term_salt_data = json.load(salt_data_file)
-        except OSError:
-            print("failure to read file {}".format(OSError.filename))
 
         # Main loop.
         while True:
@@ -176,24 +189,18 @@ class WaterSoftenerMinder(threading.Thread):
             # Get the salt string, which provides the status of the hopper.
             self.create_salt_status_string()
 
+            # Check to see if there is any commend to respond to - check incoming
             self.respond_to_command()
-
-            # Only print out every once in a while - just filling up screen and logs.
-            if loop_count % (360 * 4) == 0:
-                print("WSM: {}" .format(self.salt_str))
-                data_item = {"datetime": curr_time.strftime("%d/%m %H:%M"), "salt_level": self.remaining_salt}
-                long_term_salt_data.append(data_item)
-
-                # Update the plot and write latest data to the file.
-                if len(long_term_salt_data) >= 5:
-                    salt_plotter.plot_save(long_term_salt_data, "salt_plot.jpg")
-
-                    # Write the latest data to file.
-                    with open(self.long_term_data_filename, 'w') as salt_data_file:
-                        json.dump(long_term_salt_data, salt_data_file)
 
             # This goes to LED string for handling.
             self.led_remaining_salt_ratio_queue.put_nowait(self.remaining_salt_ratio)
+
+            # Restricts the time at which measurements are taken.  The last_measurement_hour bit makes sure
+            # only one measurement gets done in that one hour.
+            if curr_time.hour in self.hours_to_measure and curr_time.hour is not last_measure_hour:
+                # Take the regular measurement
+                self.regular_measurement(curr_time)
+                last_measure_hour = curr_time.hour
 
             # Restricts the time at which measurements are announced to telegram.  The last_msg_hour bit makes sure
             # only one message goes out in that one hour.
@@ -207,7 +214,6 @@ class WaterSoftenerMinder(threading.Thread):
                 last_msg_hour = curr_time.hour
 
             time.sleep(10)
-            loop_count += 1
 
 
 # Starting up the main object that manages everything.
