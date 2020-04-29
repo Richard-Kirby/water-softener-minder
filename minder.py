@@ -66,7 +66,7 @@ class WaterSoftenerMinder(threading.Thread):
         self.salt_str = None
 
         # hours at which to send a message to Telegram.  Don't send message while likely to be asleep.
-        self.hours_to_message = [7, 20]
+        self.hours_to_message = [20]
         self.hours_to_measure = [6]
         self.last_msg_hour = None  # last message sent - if None, it indicates the program is just starting.
 
@@ -83,7 +83,7 @@ class WaterSoftenerMinder(threading.Thread):
         # Create the plotter - plot up to 20 samples.
         self.salt_plotter = graphing.SaltPlotter(20)
 
-        # check on the time sync.  If not synched yet, then wait and break out of the loop when detected or max loop
+        # check on the time sync.  If not synced yet, then wait and break out of the loop when detected or max loop
         # reached
         ntp_client = ntplib.NTPClient()
 
@@ -178,13 +178,14 @@ class WaterSoftenerMinder(threading.Thread):
 
     # Main loop that manages the work flow.
     def run(self):
-        last_msg_hour = None  # initialising this so we get one status message sent at the start.
-        last_measure_hour = None
+        last_msg_day_hour = None  # initialising this so we get one status message sent at the start.
+        last_measure_day_hour = None  # Init of the measurement day/hour
         time.sleep(5)  # wait a few seconds to build up some measurements.
 
         # Main loop.
         while True:
             curr_time = datetime.datetime.now()
+            curr_day_hour = {'day': curr_time.day, 'hour':curr_time.hour}
 
             # Get the salt string, which provides the status of the hopper.
             self.create_salt_status_string()
@@ -197,21 +198,22 @@ class WaterSoftenerMinder(threading.Thread):
 
             # Restricts the time at which measurements are taken.  The last_measurement_hour bit makes sure
             # only one measurement gets done in that one hour.
-            if curr_time.hour in self.hours_to_measure and curr_time.hour is not last_measure_hour:
+            if curr_time.hour in self.hours_to_measure and not curr_day_hour == last_measure_day_hour:
                 # Take the regular measurement
+                print(curr_day_hour, last_measure_day_hour)
                 self.regular_measurement(curr_time)
-                last_measure_hour = curr_time.hour
+                last_measure_day_hour = curr_day_hour
 
             # Restricts the time at which measurements are announced to telegram.  The last_msg_hour bit makes sure
             # only one message goes out in that one hour.
-            if (curr_time.hour in self.hours_to_message and curr_time.hour is not last_msg_hour) \
-                    or last_msg_hour is None:
+            if (curr_time.hour in self.hours_to_message and not curr_day_hour == last_msg_day_hour) \
+                    or last_msg_day_hour is None:
 
                 # Send the latest image
                 image_dict = {'image': "/home/pi/water-softener-minder/salt_plot.jpg", 'caption': self.salt_str}
                 out_telegram_item = telegram_if.OutgoingTelegramItem(image_to_send_dict=image_dict)
                 self.outgoing_telegram_queue.put_nowait(out_telegram_item)
-                last_msg_hour = curr_time.hour
+                last_msg_day_hour = curr_day_hour
 
             time.sleep(10)
 
