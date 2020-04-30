@@ -66,11 +66,10 @@ class WaterSoftenerMinder(threading.Thread):
         self.salt_str = None
 
         # hours at which to send a message to Telegram.  Don't send message while likely to be asleep.
-        self.hours_to_message = [20]
+        self.hours_to_message = [7, 20]
         self.hours_to_measure = [6]
-        self.last_msg_hour = None  # last message sent - if None, it indicates the program is just starting.
 
-        self.long_term_salt_data = [] # initialise the long term data with empty array - gets read from file.
+        self.long_term_salt_data = []  # initialise the long term data with empty array - gets read from file.
         self.long_term_data_filename = 'long_term_salt_data.json'
 
         # Get the existing data from the file.
@@ -200,7 +199,7 @@ class WaterSoftenerMinder(threading.Thread):
             # only one measurement gets done in that one hour.
             if curr_time.hour in self.hours_to_measure and not curr_day_hour == last_measure_day_hour:
                 # Take the regular measurement
-                print(curr_day_hour, last_measure_day_hour)
+                #print(curr_day_hour, last_measure_day_hour)
                 self.regular_measurement(curr_time)
                 last_measure_day_hour = curr_day_hour
 

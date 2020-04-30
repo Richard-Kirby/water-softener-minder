@@ -14,7 +14,7 @@ class SaltPlotter:
 
     def plot_save(self, long_term_data, file_name):
 
-        print("plotting")
+        # print("plotting")
         x_data = []
         y_data = []
 
