@@ -70,12 +70,15 @@ class TelegramIf(threading.Thread):
                         self.last_update_id = update['update_id']
                         # print(update)
 
-                        command = update['message']['text']
+                        try:
+                            command = update['message']['text']
 
-                        # print('Got command: {}'.format(command))
+                            # Put into the queue for the minder main program to handle.
+                            self.incoming_queue.put_nowait(command)
 
-                        # Put into the queue for the minder main program to handle.
-                        self.incoming_queue.put_nowait(command)
+                        except:
+                            print("***** Water-Softener-Minder - Update process error:", sys.exc_info())
+
 
                 while not self.outgoing_queue.empty():
                     outgoing_telegram_item = self.outgoing_queue.get_nowait()
@@ -96,7 +99,7 @@ class TelegramIf(threading.Thread):
             print("Keyboard Interrupt")
 
         except:
-            print("***** Water-Softener-Minder - Some other exception - might be a network issue - 120s stale task timeout?")
+            print("***** Water-Softener-Minder - Exception - might be a network issue -120s stale task timeout?")
 
             print("***** Water-Softener-Minder - Unexpected error:", sys.exc_info())
             # Force Reboot here after a timeout.
