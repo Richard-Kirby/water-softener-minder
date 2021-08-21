@@ -30,10 +30,13 @@ class TelegramIf(threading.Thread):
             config = json.load(json_data_file)
 
         # assign to appropriate variables - get used for each call to get status.
+        # print(config['telegram_secret']['http_api_token'], config['telegram_secret']['telegram_user_id'])
         self.telegram_bot = telepot.Bot(config['telegram_secret']['http_api_token'])
         self.telegram_user_id = config['telegram_secret']['telegram_user_id']
 
         self.bot_dict = self.telegram_bot.getMe()
+
+        print(self.bot_dict)
 
         # print(self.bot_dict)
 

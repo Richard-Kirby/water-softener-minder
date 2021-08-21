@@ -3,3 +3,4 @@ adafruit-circuitpython-vl53l0x
 rpi-ws281x
 telepot
 ntplib
+numpy
