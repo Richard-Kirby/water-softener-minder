@@ -66,7 +66,7 @@ class WaterSoftenerMinder(threading.Thread):
         self.salt_str = None
 
         # hours at which to send a message to Telegram.  Don't send message while likely to be asleep.
-        self.hours_to_message = [7, 20]
+        self.hours_to_message = [7]
         self.hours_to_measure = [6]
 
         self.long_term_salt_data = []  # initialise the long term data with empty array - gets read from file.
