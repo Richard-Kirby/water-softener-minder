@@ -44,7 +44,7 @@ class WaterSoftenerMinder(threading.Thread):
         led_count = 22  # Number of LED pixels.
         led_pin = 18  # GPIO pin connected to the pixels (must support PWM!).
         led_freq_hz = 800000  # LED signal frequency in hertz (usually 800khz)
-        led_dma = 5  # DMA channel to use for generating signal (try 5)
+        led_dma = 10  # DMA channel to use for generating signal (try 5)
         led_brightness = 255  # Set to 0 for darkest and 255 for brightest
         led_invert = False  # True to invert the signal (when using NPN transistor level shift)
 
@@ -59,7 +59,7 @@ class WaterSoftenerMinder(threading.Thread):
         # Basic setup parameters - could go into a JSON or other file.
         self.hopper_size_mm = 420  # size of hopper in mm
         self.mm_to_salt_fill_line = 100  # distance between sensor and where the fill line is for the salt.
-        self.refill_warning_ratio = 0.50  # Trigger a refill WARNING message at 20%
+        self.refill_warning_ratio = 0.60  # Trigger a refill WARNING message at 20%
         self.refill_warning_level = self.refill_warning_ratio * (self.hopper_size_mm - self.mm_to_salt_fill_line)
         self.remaining_salt = 0
         self.remaining_salt_ratio = 0
